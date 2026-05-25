@@ -88,16 +88,16 @@ func (model *UserModel) InsertUser(user User) (User, error) {
 	return createdUser, err
 }
 
-func (model *UserModel) GetUserByEmailAndPassword(email string, password string) (User, error) {
+func (model *UserModel) GetUserByEmail(email string) (User, error) {
 	user := User{}
 	found, err := model.db.From(UserTable).Where(goqu.Ex{
-		"email":    email,
-		"password": password,
+		"email": email,
 	}).Select(
 		"id",
 		"first_name",
 		"last_name",
 		"email",
+		"password",
 	).ScanStruct(&user)
 
 	if err != nil {

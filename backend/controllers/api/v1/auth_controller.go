@@ -15,6 +15,7 @@ import (
 	"github.com/AshvinBambhaniya/tic-tac-toe/utils"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 )
@@ -78,6 +79,10 @@ func (ctrl *AuthController) DoAuth(c *fiber.Ctx) error {
 		}
 		ctrl.logger.Error("error while get user by email and password", zap.Error(err), zap.Any("email", reqLoginUser.Email))
 		return utils.JSONError(c, http.StatusInternalServerError, constants.ErrLoginUser)
+	}
+
+	if user.ID == uuid.Nil {
+		return utils.JSONFail(c, http.StatusUnauthorized, constants.InvalidCredentials)
 	}
 
 	// token is valid for 1 hour
