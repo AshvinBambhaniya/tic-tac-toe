@@ -14,11 +14,12 @@ var AllConfig AppConfig
 
 // AppConfig type AppConfig
 type AppConfig struct {
-	IsDevelopment bool   `envconfig:"IS_DEVELOPMENT"`
-	Debug         bool   `envconfig:"DEBUG"`
-	Env           string `envconfig:"APP_ENV"`
-	Port          string `envconfig:"APP_PORT"`
-	Secret        string `envconfig:"JWT_SECRET"`
+	IsDevelopment bool   `envconfig:"IS_DEVELOPMENT" default:"false"`
+	Debug         bool   `envconfig:"DEBUG" default:"false"`
+	Env           string `envconfig:"APP_ENV" default:"local"`
+	Port          string `envconfig:"APP_PORT" default:":3000"`
+	Secret        string `envconfig:"JWT_SECRET" default:"ThisIsKey"`
+	FrontendURL   string `envconfig:"FRONTEND_URL" default:"http://localhost:3000"`
 	DB            DBConfig
 }
 
@@ -31,7 +32,7 @@ func GetConfig() AppConfig {
 
 	AllConfig = AppConfig{}
 
-	err = envconfig.Process("APP_PORT", &AllConfig)
+	err = envconfig.Process("", &AllConfig)
 	if err != nil {
 		log.Fatal(err)
 	}

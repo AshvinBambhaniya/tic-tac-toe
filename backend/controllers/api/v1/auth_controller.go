@@ -101,3 +101,14 @@ func (ctrl *AuthController) DoAuth(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, http.StatusOK, user)
 }
+
+func (ctrl *AuthController) DoLogout(c *fiber.Ctx) error {
+	userCookie := &fiber.Cookie{
+		Name:    constants.CookieUser,
+		Value:   "",
+		Expires: time.Now().Add(-1 * time.Hour), // Expire in the past
+	}
+	c.Cookie(userCookie)
+
+	return utils.JSONSuccess(c, http.StatusOK, nil)
+}

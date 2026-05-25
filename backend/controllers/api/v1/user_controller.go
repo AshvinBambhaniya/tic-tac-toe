@@ -85,3 +85,21 @@ func (ctrl *UserController) CreateUser(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, http.StatusCreated, user)
 }
+
+func (ctrl *UserController) GetMe(c *fiber.Ctx) error {
+	userIDStr := c.Locals(constants.ContextUid).(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return utils.JSONFail(c, http.StatusBadRequest, constants.InvalidUserID)
+	}
+
+	user, err := ctrl.userService.GetUser(userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return utils.JSONFail(c, http.StatusNotFound, constants.UserNotExist)
+		}
+		ctrl.logger.Error("error while get current user", zap.Any("id", userID), zap.Error(err))
+		return utils.JSONError(c, http.StatusInternalServerError, constants.ErrGetUser)
+	}
+	return utils.JSONSuccess(c, http.StatusOK, user)
+}

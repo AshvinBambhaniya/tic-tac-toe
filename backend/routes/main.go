@@ -12,6 +12,7 @@ import (
 	"github.com/AshvinBambhaniya/tic-tac-toe/middlewares"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 var mu sync.Mutex
@@ -19,6 +20,13 @@ var mu sync.Mutex
 // Setup func
 func Setup(app *fiber.App, goqu *goqu.Database, logger *zap.Logger, config config.AppConfig) error {
 	mu.Lock()
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     config.FrontendURL,
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, x-workspace-id, X-Requested-With",
+		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
+		AllowCredentials: true,
+	}))
 
 	// TODO: add swagger docs
 	// app.Use(swagger.New(swagger.Config{
@@ -58,6 +66,7 @@ func setupAuthController(v1 fiber.Router, goqu *goqu.Database, logger *zap.Logge
 		return err
 	}
 	v1.Post("/login", authController.DoAuth)
+	v1.Get("/logout", authController.DoLogout)
 
 	return nil
 }
@@ -70,6 +79,7 @@ func setupUserController(v1 fiber.Router, goqu *goqu.Database, logger *zap.Logge
 
 	userRouter := v1.Group("/users")
 	userRouter.Post("/", userController.CreateUser)
+	userRouter.Get("/me", middlewares.Authenticated, userController.GetMe)
 	userRouter.Get(fmt.Sprintf("/:%s", constants.ParamUid), middlewares.Authenticated, userController.GetUser)
 	return nil
 }
