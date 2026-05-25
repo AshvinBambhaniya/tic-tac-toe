@@ -1,9 +1,14 @@
-import { isWin } from "@/composable/gameStatus";
-import { currentUser } from "./currentUser";
+import { isWin } from "../composable/gameStatus.js";
+import { currentUser } from "./currentUser.js";
 import { ref } from "vue";
-import { activeBox } from "./activeBox";
+import { activeBox } from "./activeBox.js";
+import { setGameOver } from "./gameStatusStore.js";
 
 export const mainArr = ref(Array(9).fill(""));
+
+export const resetMainArr = () => {
+    mainArr.value = Array(9).fill("");
+}
 
 export const addToarrayOfMain = (num) => {
     if (mainArr.value[num] !== "") {
@@ -13,12 +18,8 @@ export const addToarrayOfMain = (num) => {
     const result = isWin(mainArr.value);
 
     if (result) {
-        console.log("main game" + result + "is win");
-        alert(` ${result} wins`);
-
-        window.location.reload()
+        setGameOver(result);
     }
-
 }
 
 export const isAlreadyWinBySomeone = (index) => {
