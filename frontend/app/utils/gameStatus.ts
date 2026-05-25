@@ -1,4 +1,4 @@
-export const isWin = (arr) => {
+export const isWin = (arr: string[]): string | false => {
     const winCondition = [
         [3, 4, 5],
         [6, 7, 8],
@@ -15,15 +15,8 @@ export const isWin = (arr) => {
         }
     }
     return false;
-}
+};
 
-export const isDraw = (arr) => {
-    let draw = true;
-    for (let i = 0; i < arr.length; i++) {
-        if (!arr[i]) {
-            draw = false;
-            break;
-        }
-    }
-    return draw
-}
+export const isDraw = (arr: string[]): boolean => {
+    return arr.every(cell => cell !== "");
+};

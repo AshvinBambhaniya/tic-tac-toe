@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#0f172a] text-white font-inter selection:bg-accent-x/30;
+    background: radial-gradient(circle at top right, #0f172a, #1e1b4b, #312e81);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply bg-glass-bg backdrop-blur-[20px] border border-glass-border shadow-[0_20px_50px_rgba(0,0,0,0.5)];
+  }
+
+  .turn-indicator-shadow-x {
+    box-shadow: 0 0 30px rgba(0, 242, 255, 0.3);
+  }
+
+  .turn-indicator-shadow-o {
+    box-shadow: 0 0 30px rgba(255, 0, 234, 0.3);
+  }
+}
