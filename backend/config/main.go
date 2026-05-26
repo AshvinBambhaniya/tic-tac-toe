@@ -20,6 +20,11 @@ type AppConfig struct {
 	Port          string `envconfig:"APP_PORT" default:":3000"`
 	Secret        string `envconfig:"JWT_SECRET" default:"ThisIsKey"`
 	FrontendURL   string `envconfig:"FRONTEND_URL" default:"http://localhost:3000"`
+	
+	// Game Settings
+	GameDisconnectTimeout int `envconfig:"GAME_DISCONNECT_TIMEOUT" default:"60"`  // Seconds
+	GameCleanupThreshold   int `envconfig:"GAME_CLEANUP_THRESHOLD" default:"120"` // Minutes
+
 	DB            DBConfig
 }
 

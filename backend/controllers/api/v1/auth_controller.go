@@ -85,8 +85,8 @@ func (ctrl *AuthController) DoAuth(c *fiber.Ctx) error {
 		return utils.JSONFail(c, http.StatusUnauthorized, constants.InvalidCredentials)
 	}
 
-	// token is valid for 1 hour
-	token, err := jwt.CreateToken(ctrl.config, user.ID.String(), time.Now().Add(time.Hour*1))
+	// token is valid for 24 hours
+	token, err := jwt.CreateToken(ctrl.config, user.ID.String(), time.Now().Add(time.Hour*24))
 	if err != nil {
 		ctrl.logger.Error("error while creating token", zap.Error(err), zap.Any("id", user.ID))
 		return utils.JSONFail(c, http.StatusInternalServerError, constants.ErrLoginUser)
@@ -95,7 +95,7 @@ func (ctrl *AuthController) DoAuth(c *fiber.Ctx) error {
 	userCookie := &fiber.Cookie{
 		Name:    constants.CookieUser,
 		Value:   token,
-		Expires: time.Now().Add(1 * time.Hour),
+		Expires: time.Now().Add(24 * time.Hour),
 	}
 	c.Cookie(userCookie)
 
