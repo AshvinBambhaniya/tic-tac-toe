@@ -16,6 +16,14 @@ export const usePlayerSymbol = () => useState<string | null>('playerSymbol', () 
 export const useAllMoves = () => useState<any[]>('allMoves', () => []);
 export const useSubGridResults = () => useState<any[]>('subGridResults', () => []);
 
+// Timer States
+export const useGameMode = () => useState<string>('gameMode', () => 'normal');
+export const useTimeBankX = () => useState<number | null>('timeBankX', () => null);
+export const useTimeBankO = () => useState<number | null>('timeBankO', () => null);
+export const useMissedTurnsX = () => useState<number>('missedTurnsX', () => 0);
+export const useMissedTurnsO = () => useState<number>('missedTurnsO', () => 0);
+export const useLastMoveAt = () => useState<string | null>('lastMoveAt', () => null);
+
 export const useGameState = () => {
     const activeBox = useActiveBox();
     const currentUser = useCurrentUser();
@@ -29,6 +37,13 @@ export const useGameState = () => {
     const playerSymbol = usePlayerSymbol();
     const allMoves = useAllMoves();
     const subGridResults = useSubGridResults();
+    
+    const gameMode = useGameMode();
+    const timeBankX = useTimeBankX();
+    const timeBankO = useTimeBankO();
+    const missedTurnsX = useMissedTurnsX();
+    const missedTurnsO = useMissedTurnsO();
+    const lastMoveAt = useLastMoveAt();
 
     // In server-authoritative mode, we just update state based on server messages
     const updateFromServer = (payload: any) => {
@@ -49,6 +64,14 @@ export const useGameState = () => {
         isOpponentDisconnected.value = false;
         isAIGame.value = playerOId === BOT_USER_ID;
         gameID.value = game.id;
+
+        // Timer mapping
+        gameMode.value = game.game_mode;
+        timeBankX.value = game.time_bank_x;
+        timeBankO.value = game.time_bank_o;
+        missedTurnsX.value = game.missed_turns_x;
+        missedTurnsO.value = game.missed_turns_o;
+        lastMoveAt.value = game.last_move_at;
 
         // Set player symbol locally
         if (currentUserId) {
@@ -83,6 +106,13 @@ export const useGameState = () => {
         playerSymbol.value = null;
         allMoves.value = [];
         subGridResults.value = [];
+        
+        gameMode.value = 'normal';
+        timeBankX.value = null;
+        timeBankO.value = null;
+        missedTurnsX.value = 0;
+        missedTurnsO.value = 0;
+        lastMoveAt.value = null;
     };
 
     return {
@@ -98,6 +128,12 @@ export const useGameState = () => {
         playerSymbol,
         allMoves,
         subGridResults,
+        gameMode,
+        timeBankX,
+        timeBankO,
+        missedTurnsX,
+        missedTurnsO,
+        lastMoveAt,
         updateFromServer,
         resetFullGame
     };

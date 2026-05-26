@@ -13,6 +13,12 @@ const {
   playerSymbol,
   isOpponentDisconnected,
   isAIGame,
+  gameMode,
+  timeBankX,
+  timeBankO,
+  lastMoveAt,
+  missedTurnsX,
+  missedTurnsO,
   updateFromServer
 } = useGameState();
 
@@ -23,12 +29,45 @@ const { $apiFetch } = useApiFetch();
 const isReviewMode = ref(false);
 const winnerName = ref('');
 
+const displayTimeX = ref(0);
+const displayTimeO = ref(0);
+let timerInterval: any = null;
+
+const syncTimers = () => {
+  if (!lastMoveAt.value || isGameOver.value || isReviewMode.value) return;
+
+  const now = new Date().getTime();
+  const lastMove = new Date(lastMoveAt.value).getTime();
+  const elapsed = Math.floor((now - lastMove) / 1000);
+
+  if (gameMode.value === 'blitz') {
+    if (currentUser.value === 'X') {
+      displayTimeX.value = Math.max(0, (timeBankX.value || 0) - elapsed);
+      displayTimeO.value = timeBankO.value || 0;
+    } else {
+      displayTimeO.value = Math.max(0, (timeBankO.value || 0) - elapsed);
+      displayTimeX.value = timeBankX.value || 0;
+    }
+  } else if (gameMode.value === 'rapid') {
+    const remaining = Math.max(0, 30 - elapsed);
+    if (currentUser.value === 'X') {
+      displayTimeX.value = remaining;
+      displayTimeO.value = 30;
+    } else {
+      displayTimeO.value = remaining;
+      displayTimeX.value = 30;
+    }
+  }
+};
+
 definePageMeta({
   middleware: 'auth'
 });
 
 onMounted(async () => {
   resetFullGame();
+  
+  timerInterval = setInterval(syncTimers, 500);
   
   try {
     // 1. Fetch initial state via REST
@@ -55,7 +94,15 @@ onMounted(async () => {
 
 onUnmounted(() => {
   disconnect();
+  if (timerInterval) clearInterval(timerInterval);
 });
+
+const formatTime = (seconds: number) => {
+  if (gameMode.value === 'normal') return '--';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
 
 const handleReset = () => {
   if (!isGameOver.value) {
@@ -126,6 +173,30 @@ useHead({
         <div class="mb-8">
            <p class="text-[0.7rem] uppercase tracking-[3px] text-white/30 mb-1 font-bold">MATCH ID</p>
            <p class="text-[0.8rem] font-mono text-white/60 truncate">{{ gameId }}</p>
+        </div>
+
+        <!-- Timer Section -->
+        <div v-if="gameMode !== 'normal'" class="mb-10 flex gap-4">
+           <div class="flex-1 glass-effect p-4 rounded-2xl border transition-all duration-300"
+                :class="currentUser === 'X' ? 'border-accent-x/40 bg-accent-x/5' : 'border-white/5'">
+              <p class="text-[0.5rem] font-black uppercase tracking-widest text-white/30 mb-1">Player X</p>
+              <p class="text-2xl font-black tabular-nums" :class="currentUser === 'X' ? 'text-accent-x' : 'text-white/40'">
+                {{ formatTime(displayTimeX) }}
+              </p>
+              <p v-if="gameMode === 'rapid' && missedTurnsX > 0" class="text-[0.5rem] font-bold text-accent-o mt-1 animate-pulse">
+                ⚠️ {{ missedTurnsX }}/3 MISSED
+              </p>
+           </div>
+           <div class="flex-1 glass-effect p-4 rounded-2xl border transition-all duration-300"
+                :class="currentUser === 'O' ? 'border-accent-o/40 bg-accent-o/5' : 'border-white/5'">
+              <p class="text-[0.5rem] font-black uppercase tracking-widest text-white/30 mb-1">Player O</p>
+              <p class="text-2xl font-black tabular-nums" :class="currentUser === 'O' ? 'text-accent-o' : 'text-white/40'">
+                {{ formatTime(displayTimeO) }}
+              </p>
+              <p v-if="gameMode === 'rapid' && missedTurnsO > 0" class="text-[0.5rem] font-bold text-accent-o mt-1 animate-pulse">
+                ⚠️ {{ missedTurnsO }}/3 MISSED
+              </p>
+           </div>
         </div>
 
         <h1 class="text-[3rem] font-extrabold mb-10 leading-[1.1] text-left md:text-[2.2rem]">

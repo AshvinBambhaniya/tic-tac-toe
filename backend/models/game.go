@@ -22,6 +22,12 @@ type Game struct {
 	WinnerId       *uuid.UUID `json:"winner_id" db:"winner_id"`
 	Status         string     `json:"status" db:"status"`
 	Difficulty     int16      `json:"difficulty" db:"difficulty"`
+	GameMode       string     `json:"game_mode" db:"game_mode"`
+	TimeBankX      *int       `json:"time_bank_x" db:"time_bank_x"`
+	TimeBankO      *int       `json:"time_bank_o" db:"time_bank_o"`
+	MissedTurnsX   int16      `json:"missed_turns_x" db:"missed_turns_x"`
+	MissedTurnsO   int16      `json:"missed_turns_o" db:"missed_turns_o"`
+	LastMoveAt     time.Time  `json:"last_move_at" db:"last_move_at"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
 }
@@ -62,32 +68,48 @@ func InitGameModel(goqu *goqu.Database) GameModel {
 	}
 }
 
-func (m *GameModel) CreateGame(playerXId uuid.UUID) (Game, error) {
+func (m *GameModel) CreateGame(playerXId uuid.UUID, gameMode string) (Game, error) {
 	var game Game
-	_, err := m.db.Insert(GameTable).Rows(
-		goqu.Record{
-			"player_x_id":     playerXId,
-			"status":          "ongoing",
-			"current_turn":    "X",
-			"active_sub_grid": 9,
-			"difficulty":      0,
-		},
-	).Returning("*").Executor().ScanStruct(&game)
+	record := goqu.Record{
+		"player_x_id":     playerXId,
+		"status":          "ongoing",
+		"current_turn":    "X",
+		"active_sub_grid": 9,
+		"difficulty":      0,
+		"game_mode":       gameMode,
+		"last_move_at":    time.Now(),
+	}
+
+	if gameMode == "blitz" {
+		fiveMinutes := 300
+		record["time_bank_x"] = fiveMinutes
+		record["time_bank_o"] = fiveMinutes
+	}
+
+	_, err := m.db.Insert(GameTable).Rows(record).Returning("*").Executor().ScanStruct(&game)
 	return game, err
 }
 
-func (m *GameModel) CreateAIGame(playerXId uuid.UUID, botId uuid.UUID, difficulty int16) (Game, error) {
+func (m *GameModel) CreateAIGame(playerXId uuid.UUID, botId uuid.UUID, difficulty int16, gameMode string) (Game, error) {
 	var game Game
-	_, err := m.db.Insert(GameTable).Rows(
-		goqu.Record{
-			"player_x_id":     playerXId,
-			"player_o_id":     botId,
-			"status":          "ongoing",
-			"current_turn":    "X",
-			"active_sub_grid": 9,
-			"difficulty":      difficulty,
-		},
-	).Returning("*").Executor().ScanStruct(&game)
+	record := goqu.Record{
+		"player_x_id":     playerXId,
+		"player_o_id":     botId,
+		"status":          "ongoing",
+		"current_turn":    "X",
+		"active_sub_grid": 9,
+		"difficulty":      difficulty,
+		"game_mode":       gameMode,
+		"last_move_at":    time.Now(),
+	}
+
+	if gameMode == "blitz" {
+		fiveMinutes := 300
+		record["time_bank_x"] = fiveMinutes
+		record["time_bank_o"] = fiveMinutes
+	}
+
+	_, err := m.db.Insert(GameTable).Rows(record).Returning("*").Executor().ScanStruct(&game)
 	return game, err
 }
 
@@ -106,6 +128,12 @@ func (m *GameModel) UpdateGame(game Game) error {
 			"winner_id":       game.WinnerId,
 			"status":          game.Status,
 			"difficulty":      game.Difficulty,
+			"game_mode":       game.GameMode,
+			"time_bank_x":     game.TimeBankX,
+			"time_bank_o":     game.TimeBankO,
+			"missed_turns_x":  game.MissedTurnsX,
+			"missed_turns_o":  game.MissedTurnsO,
+			"last_move_at":    game.LastMoveAt,
 			"updated_at":      time.Now(),
 		},
 	).Executor().Exec()
@@ -177,6 +205,12 @@ func (m *GameModel) MarkStaleGamesAsFinished(threshold time.Duration) (int64, er
 	}
 	return res.RowsAffected()
 }
+func (m *GameModel) GetAllOngoingGames() ([]Game, error) {
+	var games []Game
+	err := m.db.From(GameTable).Where(goqu.Ex{"status": "ongoing"}).ScanStructs(&games)
+	return games, err
+}
+
 func (m *GameModel) GetGameHistoryByPlayer(playerID uuid.UUID) ([]GameHistory, error) {
 	var history []GameHistory
 

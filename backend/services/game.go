@@ -39,7 +39,89 @@ func NewGameService(gameModel *models.GameModel, gameEngine *GameEngine, logger 
 	}
 	go s.runMatchmaking()
 	go s.runCleanupWorker()
+	go s.runTimerWorker()
 	return s
+}
+
+func (s *GameService) runTimerWorker() {
+	ticker := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			s.handleActiveTimers()
+		}
+	}
+}
+
+func (s *GameService) handleActiveTimers() {
+	games, err := s.gameModel.GetAllOngoingGames()
+	if err != nil {
+		return
+	}
+
+	now := time.Now()
+	for _, game := range games {
+		elapsed := int(now.Sub(game.LastMoveAt).Seconds())
+		shouldUpdate := false
+		var newState interface{}
+
+		if game.GameMode == "blitz" {
+			limit := 0
+			if game.CurrentTurn == "X" {
+				limit = *game.TimeBankX
+			} else if game.TimeBankO != nil {
+				limit = *game.TimeBankO
+			}
+
+			if elapsed >= limit {
+				// Time's up! Auto forfeit
+				playerID := game.PlayerXId
+				if game.CurrentTurn == "O" && game.PlayerOId != nil {
+					playerID = *game.PlayerOId
+				}
+				newState, _ = s.ForfeitGame(game.ID, playerID)
+				shouldUpdate = true
+			}
+		} else if game.GameMode == "rapid" {
+			if elapsed >= 30 {
+				// Turn timeout!
+				missed := int16(0)
+				playerID := game.PlayerXId
+				if game.CurrentTurn == "O" && game.PlayerOId != nil {
+					playerID = *game.PlayerOId
+					game.MissedTurnsO++
+					missed = game.MissedTurnsO
+				} else {
+					game.MissedTurnsX++
+					missed = game.MissedTurnsX
+				}
+
+				if missed >= 3 {
+					// 3 consecutive missed turns = forfeit
+					newState, _ = s.ForfeitGame(game.ID, playerID)
+				} else {
+					// Auto-play random move
+					moves, _ := s.gameModel.GetMoves(game.ID)
+					results, _ := s.gameModel.GetSubGridResults(game.ID)
+					validMoves := s.gameEngine.GetValidMoves(game, moves, results)
+					
+					if len(validMoves) > 0 {
+						// Simple random selection
+						move := validMoves[now.UnixNano()%int64(len(validMoves))]
+						newState, _ = s.ProcessMove(game.ID, playerID, move.SubGridIndex, move.CellIndex)
+					}
+				}
+				shouldUpdate = true
+			}
+		}
+
+		if shouldUpdate && s.hub != nil {
+			s.hub.BroadcastToRoom(game.ID.String(), structs.WSMessage{
+				Type:    "STATE_UPDATE",
+				Payload: newState,
+			})
+		}
+	}
 }
 
 func (s *GameService) runCleanupWorker() {
@@ -104,7 +186,8 @@ func (s *GameService) runMatchmaking() {
 		p2 := playerID
 		s.logger.Info("Found a match!", zap.String("player1", p1.String()), zap.String("player2", p2.String()))
 
-		game, err := s.CreateGame(p1)
+		// Default to normal mode for matchmaking for now
+		game, err := s.CreateGame(p1, "normal")
 		if err != nil {
 			s.logger.Error("Failed to create match game", zap.Error(err))
 			waitingPlayer = nil
@@ -144,13 +227,13 @@ func (s *GameService) runMatchmaking() {
 	}
 }
 
-func (s *GameService) CreateGame(playerXId uuid.UUID) (models.Game, error) {
-	return s.gameModel.CreateGame(playerXId)
+func (s *GameService) CreateGame(playerXId uuid.UUID, gameMode string) (models.Game, error) {
+	return s.gameModel.CreateGame(playerXId, gameMode)
 }
 
-func (s *GameService) CreateAIGame(playerXId uuid.UUID, difficulty int16) (models.Game, error) {
+func (s *GameService) CreateAIGame(playerXId uuid.UUID, difficulty int16, gameMode string) (models.Game, error) {
 	botID, _ := uuid.Parse(constants.BotUserID)
-	return s.gameModel.CreateAIGame(playerXId, botID, difficulty)
+	return s.gameModel.CreateAIGame(playerXId, botID, difficulty, gameMode)
 }
 
 func (s *GameService) JoinGame(gameID uuid.UUID, playerOId uuid.UUID) (models.Game, error) {
@@ -283,6 +366,45 @@ func (s *GameService) ProcessMove(gameID uuid.UUID, playerID uuid.UUID, subGridI
 	err = s.gameEngine.ValidateMove(game, moves, results, playerID, subGridIndex, cellIndex)
 	if err != nil {
 		return nil, err
+	}
+
+	// Time Calculation
+	now := time.Now()
+	elapsedSeconds := int(now.Sub(game.LastMoveAt).Seconds())
+
+	if game.GameMode == "blitz" {
+		if game.CurrentTurn == "X" {
+			*game.TimeBankX -= elapsedSeconds
+			if *game.TimeBankX <= 0 {
+				*game.TimeBankX = 0
+				game.Status = "finished"
+				if game.PlayerOId != nil {
+					game.WinnerId = game.PlayerOId
+				}
+			}
+		} else {
+			*game.TimeBankO -= elapsedSeconds
+			if *game.TimeBankO <= 0 {
+				*game.TimeBankO = 0
+				game.Status = "finished"
+				game.WinnerId = &game.PlayerXId
+			}
+		}
+	} else if game.GameMode == "rapid" {
+		// Reset missed turns since they moved manually
+		if game.CurrentTurn == "X" {
+			game.MissedTurnsX = 0
+		} else {
+			game.MissedTurnsO = 0
+		}
+	}
+
+	game.LastMoveAt = now
+
+	// If game already finished due to timeout, skip move creation
+	if game.Status != "ongoing" {
+		err = s.gameModel.UpdateGame(game)
+		return s.GetFullGameState(gameID)
 	}
 
 	// 1. Create the move

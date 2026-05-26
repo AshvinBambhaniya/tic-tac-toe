@@ -95,3 +95,51 @@ func (ge *GameEngine) ValidateMove(game models.Game, moves []models.Move, subGri
 
 	return nil
 }
+
+type ValidMove struct {
+	SubGridIndex int
+	CellIndex    int
+}
+
+func (ge *GameEngine) GetValidMoves(game models.Game, moves []models.Move, subGridWinners []models.SubGridResult) []ValidMove {
+	var validMoves []ValidMove
+
+	// Build sub-grid completion map
+	completedGrids := make(map[int]bool)
+	for _, res := range subGridWinners {
+		completedGrids[int(res.GridIndex)] = true
+	}
+
+	// Build occupancy map
+	occupied := make(map[int]map[int]bool)
+	for _, m := range moves {
+		if occupied[int(m.SubGridIndex)] == nil {
+			occupied[int(m.SubGridIndex)] = make(map[int]bool)
+		}
+		occupied[int(m.SubGridIndex)][int(m.CellIndex)] = true
+	}
+
+	if game.ActiveSubGrid == 9 {
+		// Can play in any non-completed sub-grid
+		for g := 0; g < 9; g++ {
+			if !completedGrids[g] {
+				for c := 0; c < 9; c++ {
+					if occupied[g] == nil || !occupied[g][c] {
+						validMoves = append(validMoves, ValidMove{SubGridIndex: g, CellIndex: c})
+					}
+				}
+			}
+		}
+	} else {
+		g := int(game.ActiveSubGrid)
+		if !completedGrids[g] {
+			for c := 0; c < 9; c++ {
+				if occupied[g] == nil || !occupied[g][c] {
+					validMoves = append(validMoves, ValidMove{SubGridIndex: g, CellIndex: c})
+				}
+			}
+		}
+	}
+
+	return validMoves
+}

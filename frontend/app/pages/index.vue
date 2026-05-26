@@ -20,6 +20,13 @@ const difficulties = [
   { label: 'HARD', value: 2, color: 'text-red-400' }
 ];
 
+const selectedMode = ref('normal');
+const gameModes = [
+  { label: 'NORMAL', value: 'normal', description: 'No time limit' },
+  { label: 'BLITZ', value: 'blitz', description: '5 minute bank' },
+  { label: 'RAPID', value: 'rapid', description: '30s per turn' }
+];
+
 onMounted(async () => {
   try {
     const { data } = await $apiFetch<any>('/api/v1/games/active');
@@ -32,7 +39,8 @@ onMounted(async () => {
 const createGame = async () => {
   try {
     const data = await $apiFetch<any>('/api/v1/games', {
-      method: 'POST'
+      method: 'POST',
+      body: { game_mode: selectedMode.value }
     });
     if (data) {
       router.push(`/game/${data.data.id}`);
@@ -73,7 +81,10 @@ const startAIGame = async () => {
   try {
     const data = await $apiFetch<any>('/api/v1/games/ai', {
       method: 'POST',
-      body: { difficulty: selectedDifficulty.value }
+      body: { 
+        difficulty: selectedDifficulty.value,
+        game_mode: selectedMode.value
+      }
     });
     if (data) {
       router.push(`/game/${data.data.id}`);
@@ -150,6 +161,24 @@ useHead({
           Ultimate <span class="bg-gradient-to-r from-accent-x to-accent-o bg-clip-text text-transparent">Tic-Tac-Toe</span>
         </h1>
         <p class="text-white/40 text-xl font-medium">Multiplayer Edition</p>
+      </div>
+
+      <!-- Game Mode Selection -->
+      <div class="mb-10 glass-effect p-2 rounded-3xl border border-white/5 flex gap-2">
+        <button 
+          v-for="mode in gameModes" 
+          :key="mode.value"
+          @click="selectedMode = mode.value"
+          class="flex-1 py-4 px-6 rounded-2xl transition-all duration-300 group relative overflow-hidden"
+          :class="selectedMode === mode.value ? 'bg-white/10 shadow-2xl' : 'hover:bg-white/5'"
+        >
+          <div v-if="selectedMode === mode.value" class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-x to-accent-o"></div>
+          <p class="text-[0.6rem] font-black tracking-[0.3em] uppercase transition-colors"
+             :class="selectedMode === mode.value ? 'text-white' : 'text-white/30 group-hover:text-white/60'">
+            {{ mode.label }}
+          </p>
+          <p class="text-[0.5rem] font-bold text-white/20 uppercase tracking-tighter mt-1">{{ mode.description }}</p>
+        </button>
       </div>
 
       <div class="grid grid-cols-1 gap-6">

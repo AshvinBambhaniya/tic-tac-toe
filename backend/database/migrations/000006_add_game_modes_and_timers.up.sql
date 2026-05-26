@@ -1,0 +1,15 @@
+-- +migrate Up
+ALTER TABLE games ADD COLUMN game_mode VARCHAR(20) NOT NULL DEFAULT 'normal';
+ALTER TABLE games ADD COLUMN time_bank_x INTEGER;
+ALTER TABLE games ADD COLUMN time_bank_o INTEGER;
+ALTER TABLE games ADD COLUMN missed_turns_x SMALLINT NOT NULL DEFAULT 0;
+ALTER TABLE games ADD COLUMN missed_turns_o SMALLINT NOT NULL DEFAULT 0;
+ALTER TABLE games ADD COLUMN last_move_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- +migrate Down
+ALTER TABLE games DROP COLUMN game_mode;
+ALTER TABLE games DROP COLUMN time_bank_x;
+ALTER TABLE games DROP COLUMN time_bank_o;
+ALTER TABLE games DROP COLUMN missed_turns_x;
+ALTER TABLE games DROP COLUMN missed_turns_o;
+ALTER TABLE games DROP COLUMN last_move_at;
