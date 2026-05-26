@@ -11,12 +11,16 @@ const {
   gameWinner,
   gameDraw,
   playerSymbol,
-  isOpponentDisconnected
+  isOpponentDisconnected,
+  updateFromServer
 } = useGameState();
 
 const { connect, disconnect, sendForfeit } = useMultiplayer();
 const { authUser, logout } = useAuth();
 const { $apiFetch } = useApiFetch();
+
+const isReviewMode = ref(false);
+const winnerName = ref('');
 
 definePageMeta({
   middleware: 'auth'
@@ -25,17 +29,27 @@ definePageMeta({
 onMounted(async () => {
   resetFullGame();
   
-  // Try to join the game via REST first (to ensure we are registered in DB)
   try {
-    await $apiFetch(`/api/v1/games/join/${gameId}`, {
-      method: 'POST'
-    });
+    // 1. Fetch initial state via REST
+    const { data } = await $apiFetch<any>(`/api/v1/games/${gameId}`);
+    if (data) {
+      updateFromServer(data);
+      
+      // 2. If game is ongoing, connect WebSockets
+      if (data.game.status === 'ongoing') {
+        connect(gameId);
+      } else {
+        // 3. If finished, it's Review Mode
+        isReviewMode.value = true;
+        if (data.game.winner_id) {
+           const isXWinner = data.game.winner_id === data.game.player_x_id;
+           winnerName.value = isXWinner ? 'Player X' : 'Player O';
+        }
+      }
+    }
   } catch (err) {
-    console.log('Already in game or error joining:', err);
+    console.error('Failed to load game state:', err);
   }
-  
-  // Connect WebSocket
-  connect(gameId);
 });
 
 onUnmounted(() => {
@@ -118,12 +132,19 @@ useHead({
         </h1>
         
         <div class="mb-10">
-          <div 
+          <div v-if="!isReviewMode"
             class="py-[1.2rem] rounded-[20px] font-extrabold text-[1.5rem] text-center transition-all duration-400 text-black relative overflow-hidden"
             :class="currentUser === 'X' ? 'bg-accent-x turn-indicator-shadow-x' : 'bg-accent-o turn-indicator-shadow-o'"
           >
             {{ currentUser }}'s Turn
             <div v-if="(currentUser === 'X' && playerSymbol === 'X') || (currentUser === 'O' && playerSymbol === 'O')" class="absolute top-0 right-0 bg-black/10 px-3 py-1 text-[0.6rem] uppercase tracking-tighter">Your Turn</div>
+          </div>
+          <div v-else
+            class="py-[1.2rem] rounded-[20px] font-extrabold text-[1.5rem] text-center transition-all duration-400 text-white relative overflow-hidden bg-white/10"
+          >
+            <span class="text-white/40 uppercase tracking-widest text-[0.6rem] block mb-1">Final Result</span>
+            <span v-if="gameDraw" class="text-white">MATCH DRAW</span>
+            <span v-else :class="gameWinner === 'X' ? 'text-accent-x' : 'text-accent-o'">{{ winnerName }} WINS</span>
           </div>
         </div>
 
@@ -156,9 +177,9 @@ useHead({
 
         <button 
           class="bg-transparent border-2 border-white/20 text-white py-[1.2rem] rounded-[20px] font-bold text-[1.1rem] cursor-pointer transition-all duration-300 w-full hover:bg-white/5 hover:border-white"
-          @click="handleReset"
+          @click="isReviewMode ? $router.push('/profile') : handleReset()"
         >
-          Quit Match
+          {{ isReviewMode ? 'Back to Profile' : 'Quit Match' }}
         </button>
       </div>
 

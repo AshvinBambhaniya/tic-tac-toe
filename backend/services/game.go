@@ -176,6 +176,34 @@ func (s *GameService) GetActiveGames(playerID uuid.UUID) ([]models.Game, error) 
 	return s.gameModel.GetActiveGamesByPlayer(playerID)
 }
 
+func (s *GameService) GetPlayerProfile(playerID uuid.UUID) (structs.ResProfile, error) {
+	history, err := s.gameModel.GetGameHistoryByPlayer(playerID)
+	if err != nil {
+		return structs.ResProfile{}, err
+	}
+
+	res := structs.ResProfile{
+		History: history,
+	}
+
+	for _, g := range history {
+		res.TotalGames++
+		if g.Status == "draw" {
+			res.Draws++
+		} else if g.WinnerId != nil && *g.WinnerId == playerID {
+			res.Wins++
+		} else {
+			res.Losses++
+		}
+	}
+
+	if res.TotalGames > 0 {
+		res.WinRate = (float64(res.Wins) / float64(res.TotalGames)) * 100
+	}
+
+	return res, nil
+}
+
 func (s *GameService) ForfeitGame(gameID uuid.UUID, forfeitingPlayerID uuid.UUID) (interface{}, error) {
 	game, err := s.gameModel.GetGame(gameID)
 	if err != nil {

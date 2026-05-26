@@ -85,6 +85,8 @@ func setupGameController(v1 fiber.Router, goqu *goqu.Database, logger *zap.Logge
 	gameRouter.Post("/join/:gameId", middlewares.Authenticated, gameController.JoinGame)
 	gameRouter.Post("/matchmake", middlewares.Authenticated, gameController.Matchmake)
 	gameRouter.Get("/active", middlewares.Authenticated, gameController.GetActiveGames)
+	gameRouter.Get("/profile", middlewares.Authenticated, gameController.GetProfile)
+	gameRouter.Get("/:gameId", middlewares.Authenticated, gameController.GetGameState)
 	gameRouter.Get("/ws/:gameId", middlewares.Authenticated, gameController.HandleWebSocket, fiber_ws.New(gameController.WebSocketHandler))
 
 	return nil

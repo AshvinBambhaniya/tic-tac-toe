@@ -45,6 +45,12 @@ type SubGridResult struct {
 	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
 }
 
+type GameHistory struct {
+	Game
+	PlayerXName string  `json:"player_x_name" db:"player_x_name"`
+	PlayerOName *string `json:"player_o_name" db:"player_o_name"`
+}
+
 type GameModel struct {
 	db *goqu.Database
 }
@@ -152,4 +158,35 @@ func (m *GameModel) MarkStaleGamesAsFinished(threshold time.Duration) (int64, er
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+func (m *GameModel) GetGameHistoryByPlayer(playerID uuid.UUID) ([]GameHistory, error) {
+	var history []GameHistory
+
+	query := m.db.From(goqu.T(GameTable).As("g")).
+		Select(
+			"g.id",
+			"g.player_x_id",
+			"g.player_o_id",
+			"g.current_turn",
+			"g.active_sub_grid",
+			"g.winner_id",
+			"g.status",
+			"g.created_at",
+			"g.updated_at",
+			goqu.I("ux.first_name").As("player_x_name"),
+			goqu.I("uo.first_name").As("player_o_name"),
+		).
+		LeftJoin(goqu.T("users").As("ux"), goqu.On(goqu.I("g.player_x_id").Eq(goqu.I("ux.id")))).
+		LeftJoin(goqu.T("users").As("uo"), goqu.On(goqu.I("g.player_o_id").Eq(goqu.I("uo.id")))).
+		Where(
+			goqu.Ex{"g.status": goqu.Op{"neq": "ongoing"}},
+			goqu.Or(
+				goqu.Ex{"g.player_x_id": playerID},
+				goqu.Ex{"g.player_o_id": playerID},
+			),
+		).
+		Order(goqu.I("g.updated_at").Desc())
+
+	err := query.ScanStructs(&history)
+	return history, err
 }

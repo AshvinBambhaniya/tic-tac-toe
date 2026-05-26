@@ -90,6 +90,35 @@ func (ctrl *GameController) GetActiveGames(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, http.StatusOK, games)
 }
 
+func (ctrl *GameController) GetGameState(c *fiber.Ctx) error {
+	gameIDStr := c.Params("gameId")
+	gameID, err := uuid.Parse(gameIDStr)
+	if err != nil {
+		return utils.JSONFail(c, http.StatusBadRequest, "Invalid game ID")
+	}
+
+	state, err := ctrl.gameService.GetFullGameState(gameID)
+	if err != nil {
+		ctrl.logger.Error("Failed to fetch game state", zap.Error(err))
+		return utils.JSONError(c, http.StatusInternalServerError, "Failed to fetch game state")
+	}
+
+	return utils.JSONSuccess(c, http.StatusOK, state)
+}
+
+func (ctrl *GameController) GetProfile(c *fiber.Ctx) error {
+	userIDStr := c.Locals(constants.ContextUid).(string)
+	userID, _ := uuid.Parse(userIDStr)
+
+	profile, err := ctrl.gameService.GetPlayerProfile(userID)
+	if err != nil {
+		ctrl.logger.Error("Failed to fetch player profile", zap.Error(err))
+		return utils.JSONError(c, http.StatusInternalServerError, "Failed to fetch player profile")
+	}
+
+	return utils.JSONSuccess(c, http.StatusOK, profile)
+}
+
 func (ctrl *GameController) HandleWebSocket(c *fiber.Ctx) error {
 	userID := c.Locals(constants.ContextUid)
 	if userID == nil {
