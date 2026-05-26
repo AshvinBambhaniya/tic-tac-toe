@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/AshvinBambhaniya/tic-tac-toe/constants"
 	"github.com/AshvinBambhaniya/tic-tac-toe/pkg/websocket"
@@ -133,7 +134,7 @@ func (ctrl *GameController) HandleWebSocket(c *fiber.Ctx) error {
 
 func (ctrl *GameController) WebSocketHandler(c *fiber_ws.Conn) {
 	gameID := c.Params("gameId")
-	userID := c.Locals(constants.ContextUid).(string)
+	userID := strings.ToLower(c.Locals(constants.ContextUid).(string))
 
 	client := &websocket.Client{
 		Hub:    ctrl.hub,

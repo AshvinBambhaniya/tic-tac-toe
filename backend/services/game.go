@@ -13,6 +13,7 @@ import (
 
 type GameHub interface {
 	BroadcastToUser(roomID, userID string, message interface{})
+	IsUserInRoom(roomID, userID string) bool
 }
 
 type GameService struct {
@@ -69,10 +70,24 @@ func (s *GameService) runMatchmaking() {
 	for playerID := range s.matchmakingQueue {
 		s.logger.Info("Received player in matchmaking queue", zap.String("playerID", playerID.String()))
 
+		// Validate that the new player is actually connected to the lobby
+		if s.hub != nil && !s.hub.IsUserInRoom("lobby", playerID.String()) {
+			s.logger.Warn("Player in queue is not connected to lobby, skipping", zap.String("playerID", playerID.String()))
+			continue
+		}
+
 		if waitingPlayer == nil {
 			p := playerID
 			waitingPlayer = &p
 			s.logger.Info("Player added to waiting slot", zap.String("playerID", playerID.String()))
+			continue
+		}
+
+		// Check if the waiting player is still connected
+		if s.hub != nil && !s.hub.IsUserInRoom("lobby", waitingPlayer.String()) {
+			s.logger.Warn("Waiting player is no longer connected to lobby, replacing", zap.String("oldID", waitingPlayer.String()), zap.String("newID", playerID.String()))
+			p := playerID
+			waitingPlayer = &p
 			continue
 		}
 

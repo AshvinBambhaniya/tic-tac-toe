@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
@@ -151,6 +152,17 @@ func (h *Hub) BroadcastToUser(roomID, userID string, message interface{}) {
 	default:
 		h.logger.Warn("Client send buffer full", zap.String("clientID", client.ID))
 	}
+}
+
+func (h *Hub) IsUserInRoom(roomID, userID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	if room, ok := h.rooms[roomID]; ok {
+		_, ok := room[strings.ToLower(userID)]
+		return ok
+	}
+	return false
 }
 
 func (h *Hub) handleDisconnectTimeout(gameIDStr, userIDStr string) {

@@ -193,6 +193,6 @@ useHead({
       </div>
     </div>
 
-    <GameOverModal @reset="handleReset" />
+    <GameOverModal v-if="isGameOver && !isReviewMode" @reset="handleReset" />
   </div>
 </template>
