@@ -82,6 +82,7 @@ func setupGameController(v1 fiber.Router, goqu *goqu.Database, logger *zap.Logge
 
 	gameRouter := v1.Group("/games")
 	gameRouter.Post("/", middlewares.Authenticated, gameController.CreateGame)
+	gameRouter.Post("/ai", middlewares.Authenticated, gameController.CreateAIGame)
 	gameRouter.Post("/join/:gameId", middlewares.Authenticated, gameController.JoinGame)
 	gameRouter.Post("/matchmake", middlewares.Authenticated, gameController.Matchmake)
 	gameRouter.Get("/active", middlewares.Authenticated, gameController.GetActiveGames)

@@ -41,6 +41,26 @@ func (ctrl *GameController) CreateGame(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, http.StatusCreated, game)
 }
 
+func (ctrl *GameController) CreateAIGame(c *fiber.Ctx) error {
+	userIDStr := c.Locals(constants.ContextUid).(string)
+	userID, _ := uuid.Parse(userIDStr)
+
+	var req struct {
+		Difficulty int16 `json:"difficulty"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return utils.JSONFail(c, http.StatusBadRequest, "Invalid request body")
+	}
+
+	game, err := ctrl.gameService.CreateAIGame(userID, req.Difficulty)
+	if err != nil {
+		ctrl.logger.Error("Failed to create AI game", zap.Error(err))
+		return utils.JSONError(c, http.StatusInternalServerError, "Failed to create AI game")
+	}
+
+	return utils.JSONSuccess(c, http.StatusCreated, game)
+}
+
 func (ctrl *GameController) JoinGame(c *fiber.Ctx) error {
 	gameIDStr := c.Params("gameId")
 	gameID, err := uuid.Parse(gameIDStr)

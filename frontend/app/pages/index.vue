@@ -13,6 +13,13 @@ const gameIdToJoin = ref('');
 const isMatching = ref(false);
 const activeGames = ref<any[]>([]);
 
+const selectedDifficulty = ref(0);
+const difficulties = [
+  { label: 'EASY', value: 0, color: 'text-green-400' },
+  { label: 'MEDIUM', value: 1, color: 'text-yellow-400' },
+  { label: 'HARD', value: 2, color: 'text-red-400' }
+];
+
 onMounted(async () => {
   try {
     const { data } = await $apiFetch<any>('/api/v1/games/active');
@@ -59,6 +66,20 @@ const startMatchmaking = async () => {
     console.error('Matchmaking failed:', err);
     isMatching.value = false;
     disconnect();
+  }
+};
+
+const startAIGame = async () => {
+  try {
+    const data = await $apiFetch<any>('/api/v1/games/ai', {
+      method: 'POST',
+      body: { difficulty: selectedDifficulty.value }
+    });
+    if (data) {
+      router.push(`/game/${data.data.id}`);
+    }
+  } catch (err) {
+    console.error('Failed to start AI game:', err);
   }
 };
 
@@ -114,6 +135,31 @@ useHead({
       </div>
 
       <div class="grid grid-cols-1 gap-6">
+        <!-- Single Player / AI Mode -->
+        <div class="glass-effect rounded-[32px] p-8 border border-accent-o/20 space-y-6">
+          <h2 class="text-xs font-black uppercase tracking-[0.3em] text-accent-o text-center">Single Player</h2>
+          
+          <div class="flex items-center justify-between bg-white/5 p-2 rounded-2xl border border-white/5">
+            <button 
+              v-for="diff in difficulties" 
+              :key="diff.value"
+              @click="selectedDifficulty = diff.value"
+              class="flex-1 py-3 px-4 rounded-xl text-[0.6rem] font-black tracking-widest transition-all"
+              :class="selectedDifficulty === diff.value ? 'bg-white/10 text-white shadow-lg' : 'text-white/30 hover:text-white/60'"
+            >
+              <span :class="selectedDifficulty === diff.value ? diff.color : ''">{{ diff.label }}</span>
+            </button>
+          </div>
+
+          <button 
+            @click="startAIGame"
+            class="w-full bg-gradient-to-r from-accent-o to-accent-x text-black py-5 rounded-2xl font-black text-xl hover:scale-[1.02] transition-all duration-300 shadow-[0_0_30px_rgba(255,0,234,0.3)] flex items-center justify-center gap-3"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>
+            PRACTICE VS AI
+          </button>
+        </div>
+
         <!-- Rejoin Active Games -->
         <div v-if="activeGames.length > 0" class="glass-effect rounded-[32px] p-8 border border-accent-x/20 space-y-4">
           <h2 class="text-xs font-black uppercase tracking-[0.3em] text-accent-x text-center mb-6">Active Matches Found</h2>

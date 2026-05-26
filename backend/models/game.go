@@ -21,6 +21,7 @@ type Game struct {
 	ActiveSubGrid  int16      `json:"active_sub_grid" db:"active_sub_grid"`
 	WinnerId       *uuid.UUID `json:"winner_id" db:"winner_id"`
 	Status         string     `json:"status" db:"status"`
+	Difficulty     int16      `json:"difficulty" db:"difficulty"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
 }
@@ -65,10 +66,26 @@ func (m *GameModel) CreateGame(playerXId uuid.UUID) (Game, error) {
 	var game Game
 	_, err := m.db.Insert(GameTable).Rows(
 		goqu.Record{
-			"player_x_id": playerXId,
-			"status":      "ongoing",
-			"current_turn": "X",
+			"player_x_id":     playerXId,
+			"status":          "ongoing",
+			"current_turn":    "X",
 			"active_sub_grid": 9,
+			"difficulty":      0,
+		},
+	).Returning("*").Executor().ScanStruct(&game)
+	return game, err
+}
+
+func (m *GameModel) CreateAIGame(playerXId uuid.UUID, botId uuid.UUID, difficulty int16) (Game, error) {
+	var game Game
+	_, err := m.db.Insert(GameTable).Rows(
+		goqu.Record{
+			"player_x_id":     playerXId,
+			"player_o_id":     botId,
+			"status":          "ongoing",
+			"current_turn":    "X",
+			"active_sub_grid": 9,
+			"difficulty":      difficulty,
 		},
 	).Returning("*").Executor().ScanStruct(&game)
 	return game, err
@@ -88,6 +105,7 @@ func (m *GameModel) UpdateGame(game Game) error {
 			"active_sub_grid": game.ActiveSubGrid,
 			"winner_id":       game.WinnerId,
 			"status":          game.Status,
+			"difficulty":      game.Difficulty,
 			"updated_at":      time.Now(),
 		},
 	).Executor().Exec()

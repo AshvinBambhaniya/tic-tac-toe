@@ -7,6 +7,9 @@ export const useGameWinner = () => useState<string | null>('gameWinner', () => n
 export const useGameDraw = () => useState<boolean>('gameDraw', () => false);
 export const useIsOpponentDisconnected = () => useState<boolean>('isOpponentDisconnected', () => false);
 
+export const BOT_USER_ID = "00000000-0000-0000-0000-000000000001";
+export const useIsAIGame = () => useState<boolean>('isAIGame', () => false);
+
 // New states for multiplayer
 export const useGameID = () => useState<string | null>('gameID', () => null);
 export const usePlayerSymbol = () => useState<string | null>('playerSymbol', () => null); // 'X' or 'O'
@@ -21,6 +24,7 @@ export const useGameState = () => {
     const gameWinner = useGameWinner();
     const gameDraw = useGameDraw();
     const isOpponentDisconnected = useIsOpponentDisconnected();
+    const isAIGame = useIsAIGame();
     const gameID = useGameID();
     const playerSymbol = usePlayerSymbol();
     const allMoves = useAllMoves();
@@ -38,11 +42,12 @@ export const useGameState = () => {
         const winnerId = game.winner_id?.toLowerCase();
         const playerXId = game.player_x_id?.toLowerCase();
         const playerOId = game.player_o_id?.toLowerCase();
-        const currentUserId = authUser.value.id?.toLowerCase();
+        const currentUserId = authUser.value?.id?.toLowerCase();
 
         gameWinner.value = winnerId ? (winnerId === playerXId ? 'X' : 'O') : null;
         gameDraw.value = game.status === 'draw';
         isOpponentDisconnected.value = false;
+        isAIGame.value = playerOId === BOT_USER_ID;
         gameID.value = game.id;
 
         // Set player symbol locally
@@ -73,6 +78,7 @@ export const useGameState = () => {
         gameWinner.value = null;
         gameDraw.value = false;
         isOpponentDisconnected.value = false;
+        isAIGame.value = false;
         gameID.value = null;
         playerSymbol.value = null;
         allMoves.value = [];
@@ -87,6 +93,7 @@ export const useGameState = () => {
         gameWinner,
         gameDraw,
         isOpponentDisconnected,
+        isAIGame,
         gameID,
         playerSymbol,
         allMoves,

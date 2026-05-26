@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/AshvinBambhaniya/tic-tac-toe/config"
+	"github.com/AshvinBambhaniya/tic-tac-toe/constants"
 	"github.com/AshvinBambhaniya/tic-tac-toe/models"
 	"github.com/AshvinBambhaniya/tic-tac-toe/pkg/structs"
+	"github.com/AshvinBambhaniya/tic-tac-toe/services/ai"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -14,6 +16,7 @@ import (
 type GameHub interface {
 	BroadcastToUser(roomID, userID string, message interface{})
 	IsUserInRoom(roomID, userID string) bool
+	BroadcastToRoom(gameID string, message interface{})
 }
 
 type GameService struct {
@@ -143,6 +146,11 @@ func (s *GameService) runMatchmaking() {
 
 func (s *GameService) CreateGame(playerXId uuid.UUID) (models.Game, error) {
 	return s.gameModel.CreateGame(playerXId)
+}
+
+func (s *GameService) CreateAIGame(playerXId uuid.UUID, difficulty int16) (models.Game, error) {
+	botID, _ := uuid.Parse(constants.BotUserID)
+	return s.gameModel.CreateAIGame(playerXId, botID, difficulty)
 }
 
 func (s *GameService) JoinGame(gameID uuid.UUID, playerOId uuid.UUID) (models.Game, error) {
@@ -384,5 +392,58 @@ func (s *GameService) ProcessMove(gameID uuid.UUID, playerID uuid.UUID, subGridI
 		return nil, err
 	}
 
+	// 5. Trigger AI if next turn is Bot
+	if game.Status == "ongoing" && game.PlayerOId != nil && game.PlayerOId.String() == constants.BotUserID && game.CurrentTurn == "O" {
+		go s.TriggerAIMove(game.ID, game.Difficulty)
+	}
+
 	return s.GetFullGameState(gameID)
+}
+
+func (s *GameService) TriggerAIMove(gameID uuid.UUID, difficulty int16) {
+	// Add a small delay for "thinking" realism
+	time.Sleep(500 * time.Millisecond)
+
+	state, err := s.GetFullGameState(gameID)
+	if err != nil {
+		return
+	}
+
+	// Extract state
+	fullState := state.(map[string]interface{})
+	game := fullState["game"].(models.Game)
+	moves := fullState["moves"].([]models.Move)
+	results := fullState["results"].([]models.SubGridResult)
+
+	// Select strategy
+	var strategy ai.Strategy
+	switch difficulty {
+	case 1: // Medium
+		strategy = ai.NewMinimaxStrategy(3)
+	case 2: // Hard
+		strategy = ai.NewMinimaxStrategy(5)
+	default: // Easy
+		strategy = ai.NewMinimaxStrategy(0)
+	}
+
+	bestMove, err := strategy.GetBestMove(game, moves, results)
+	if err != nil {
+		s.logger.Error("AI failed to find move", zap.Error(err))
+		return
+	}
+
+	botID, _ := uuid.Parse(constants.BotUserID)
+	newState, err := s.ProcessMove(gameID, botID, bestMove.SubGridIndex, bestMove.CellIndex)
+	if err != nil {
+		s.logger.Error("Failed to process AI move", zap.Error(err))
+		return
+	}
+
+	// Broadcast update
+	if s.hub != nil {
+		s.hub.BroadcastToRoom(gameID.String(), structs.WSMessage{
+			Type:    "STATE_UPDATE",
+			Payload: newState,
+		})
+	}
 }

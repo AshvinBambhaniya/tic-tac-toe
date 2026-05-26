@@ -12,6 +12,7 @@ const {
   gameDraw,
   playerSymbol,
   isOpponentDisconnected,
+  isAIGame,
   updateFromServer
 } = useGameState();
 
@@ -136,7 +137,13 @@ useHead({
             class="py-[1.2rem] rounded-[20px] font-extrabold text-[1.5rem] text-center transition-all duration-400 text-black relative overflow-hidden"
             :class="currentUser === 'X' ? 'bg-accent-x turn-indicator-shadow-x' : 'bg-accent-o turn-indicator-shadow-o'"
           >
-            {{ currentUser }}'s Turn
+            <span v-if="isAIGame && currentUser === 'O' && !isGameOver" class="flex items-center justify-center gap-2">
+              <span class="w-2 h-2 bg-black/40 rounded-full animate-bounce"></span>
+              <span class="w-2 h-2 bg-black/40 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+              <span class="w-2 h-2 bg-black/40 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+              THINKING
+            </span>
+            <span v-else>{{ currentUser }}'s Turn</span>
             <div v-if="(currentUser === 'X' && playerSymbol === 'X') || (currentUser === 'O' && playerSymbol === 'O')" class="absolute top-0 right-0 bg-black/10 px-3 py-1 text-[0.6rem] uppercase tracking-tighter">Your Turn</div>
           </div>
           <div v-else
