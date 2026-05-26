@@ -10,7 +10,11 @@ import (
 	"github.com/AshvinBambhaniya/tic-tac-toe/constants"
 	controller "github.com/AshvinBambhaniya/tic-tac-toe/controllers/api/v1"
 	"github.com/AshvinBambhaniya/tic-tac-toe/middlewares"
+	"github.com/AshvinBambhaniya/tic-tac-toe/models"
+	"github.com/AshvinBambhaniya/tic-tac-toe/pkg/websocket"
+	"github.com/AshvinBambhaniya/tic-tac-toe/services"
 	"github.com/doug-martin/goqu/v9"
+	fiber_ws "github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
@@ -51,12 +55,38 @@ func Setup(app *fiber.App, goqu *goqu.Database, logger *zap.Logger, config confi
 		return err
 	}
 
+	err = setupGameController(v1, goqu, logger, middlewares, config)
+	if err != nil {
+		return err
+	}
+
 	err = healthCheckController(app, goqu, logger)
 	if err != nil {
 		return err
 	}
 
 	mu.Unlock()
+	return nil
+}
+
+func setupGameController(v1 fiber.Router, goqu *goqu.Database, logger *zap.Logger, middlewares middlewares.Middleware, config config.AppConfig) error {
+	gameModel := models.InitGameModel(goqu)
+	gameEngine := services.NewGameEngine(logger)
+	gameService := services.NewGameService(&gameModel, gameEngine, logger, config)
+	hub := websocket.NewHub(logger, gameService, config)
+	gameService.SetHub(hub)
+
+	go hub.Run()
+
+	gameController := controller.NewGameController(gameService, hub, logger)
+
+	gameRouter := v1.Group("/games")
+	gameRouter.Post("/", middlewares.Authenticated, gameController.CreateGame)
+	gameRouter.Post("/join/:gameId", middlewares.Authenticated, gameController.JoinGame)
+	gameRouter.Post("/matchmake", middlewares.Authenticated, gameController.Matchmake)
+	gameRouter.Get("/active", middlewares.Authenticated, gameController.GetActiveGames)
+	gameRouter.Get("/ws/:gameId", middlewares.Authenticated, gameController.HandleWebSocket, fiber_ws.New(gameController.WebSocketHandler))
+
 	return nil
 }
 
