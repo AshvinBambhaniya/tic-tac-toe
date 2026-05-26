@@ -8,14 +8,19 @@ definePageMeta({
 });
 
 const profileData = ref<any>(null);
+const activeGames = ref<any[]>([]);
 const isLoading = ref(true);
 
 onMounted(async () => {
   try {
-    const { data } = await $apiFetch<any>('/api/v1/games/profile');
-    profileData.value = data;
+    const [profileRes, activeRes] = await Promise.all([
+      $apiFetch<any>('/api/v1/games/profile'),
+      $apiFetch<any>('/api/v1/games/active')
+    ]);
+    profileData.value = profileRes.data;
+    activeGames.value = activeRes.data || [];
   } catch (err) {
-    console.error('Failed to fetch profile:', err);
+    console.error('Failed to fetch profile data:', err);
   } finally {
     isLoading.value = false;
   }
@@ -84,6 +89,47 @@ useHead({
         <div class="text-center">
           <h1 class="text-5xl font-black mb-4 tracking-tighter text-white">Player <span class="bg-gradient-to-r from-accent-x to-accent-o bg-clip-text text-transparent">Profile</span></h1>
           <p class="text-white/40 font-medium">Tracking your ultimate performance</p>
+        </div>
+
+        <!-- Active Matches -->
+        <div v-if="activeGames.length > 0" class="space-y-6">
+          <div class="flex items-center gap-4">
+             <div class="w-2 h-2 bg-accent-x rounded-full animate-pulse shadow-[0_0_10px_#00f2ff]"></div>
+             <h2 class="text-sm font-black uppercase tracking-[0.3em] text-white">Live Matches</h2>
+             <div class="flex-1 border-t border-white/5"></div>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div v-for="game in activeGames" :key="game.id" class="glass-effect rounded-[24px] p-6 border border-white/5 hover:border-accent-x/30 transition-all group relative overflow-hidden">
+              <!-- Subtle background glow on hover -->
+              <div class="absolute inset-0 bg-accent-x/0 group-hover:bg-accent-x/[0.02] transition-colors duration-500"></div>
+              
+              <div class="relative z-10">
+                <div class="flex justify-between items-start mb-6">
+                  <div>
+                    <p class="text-[0.6rem] font-black uppercase tracking-widest text-white/30 mb-1">Match ID</p>
+                    <p class="text-xs font-mono text-white/60 tracking-tighter">{{ game.id }}</p>
+                  </div>
+                  <div class="bg-accent-x/10 text-accent-x text-[0.5rem] font-black px-2 py-1 rounded-md tracking-[0.2em]">LIVE</div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                   <div class="flex flex-col">
+                      <p class="text-[0.6rem] font-black uppercase tracking-widest text-white/30 mb-1">Current Turn</p>
+                      <p class="text-lg font-black" :class="game.current_turn === 'X' ? 'text-accent-x' : 'text-accent-o'">
+                        Player {{ game.current_turn }}
+                      </p>
+                   </div>
+                   <button 
+                    @click="router.push(`/game/${game.id}`)"
+                    class="bg-white/5 hover:bg-accent-x text-white hover:text-black p-3 rounded-xl transition-all border border-white/10 group-hover:border-accent-x/50 shadow-xl"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Stats Grid -->

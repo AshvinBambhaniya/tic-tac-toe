@@ -99,7 +99,25 @@ useHead({
     <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent-o/10 rounded-full blur-[120px] pointer-events-none"></div>
 
     <!-- User Profile -->
-    <div v-if="authUser" class="absolute top-8 right-8 z-50">
+    <div v-if="authUser" class="absolute top-8 right-8 z-50 flex items-center gap-4">
+      <!-- Global Resume Shortcut -->
+      <transition 
+        enter-active-class="transition duration-500 ease-out"
+        enter-from-class="transform translate-x-10 opacity-0"
+        enter-to-class="transform translate-x-0 opacity-100"
+      >
+        <NuxtLink 
+          v-if="activeGames.length > 0"
+          :to="activeGames.length === 1 ? `/game/${activeGames[0].id}` : '/profile'"
+          class="glass-effect px-6 py-2 rounded-full border border-accent-x/40 flex items-center gap-3 group hover:border-accent-x transition-all duration-300"
+        >
+          <div class="w-2 h-2 bg-accent-x rounded-full animate-pulse shadow-[0_0_8px_#00f2ff]"></div>
+          <span class="text-[0.6rem] font-black uppercase tracking-[0.2em] text-accent-x group-hover:text-white transition-colors">
+            {{ activeGames.length === 1 ? 'Resume Match' : `Resume (${activeGames.length})` }}
+          </span>
+        </NuxtLink>
+      </transition>
+
       <div class="flex items-center gap-4 glass-effect p-2 pr-4 rounded-full border border-white/10 hover:border-white/30 transition-all duration-300">
         <div class="w-10 h-10 rounded-full bg-accent-x flex items-center justify-center font-bold text-black">
           {{ authUser.first_name[0] }}
@@ -158,23 +176,6 @@ useHead({
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>
             PRACTICE VS AI
           </button>
-        </div>
-
-        <!-- Rejoin Active Games -->
-        <div v-if="activeGames.length > 0" class="glass-effect rounded-[32px] p-8 border border-accent-x/20 space-y-4">
-          <h2 class="text-xs font-black uppercase tracking-[0.3em] text-accent-x text-center mb-6">Active Matches Found</h2>
-          <div v-for="game in activeGames" :key="game.id" class="flex items-center justify-between bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-accent-x/30 transition-all">
-            <div class="flex flex-col">
-              <span class="text-[0.6rem] text-white/40 uppercase tracking-widest font-bold">Match ID</span>
-              <span class="text-sm font-mono text-white/80">{{ game.id.slice(0, 8) }}...</span>
-            </div>
-            <button 
-              @click="router.push(`/game/${game.id}`)"
-              class="bg-accent-x/10 hover:bg-accent-x text-accent-x hover:text-black px-6 py-2 rounded-xl text-xs font-black transition-all border border-accent-x/20"
-            >
-              REJOIN
-            </button>
-          </div>
         </div>
 
         <!-- Play Options -->
