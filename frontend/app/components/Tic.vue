@@ -6,77 +6,55 @@ const props = defineProps<{
 const { 
   activeBox, 
   currentUser, 
-  isGameOver, 
-  toggleUser, 
-  addToMainBoard, 
-  isSubGridWon 
+  isGameOver,
+  allMoves,
+  subGridResults,
+  playerSymbol
 } = useGameState();
 
-const arr = ref<string[]>(Array(9).fill(""));
-const win = ref(false);
-const winner = ref("");
+const { sendMove } = useMultiplayer();
+
+const isPlayerTurn = computed(() => {
+  return playerSymbol.value === currentUser.value;
+});
+
+// Derived local array based on allMoves
+const arr = computed(() => {
+  const localArr = Array(9).fill("");
+  allMoves.value.forEach(move => {
+    if (move.sub_grid_index === props.ticId) {
+      localArr[move.cell_index] = move.symbol;
+    }
+  });
+  return localArr;
+});
+
+const subGridResult = computed(() => {
+  return subGridResults.value.find(res => res.grid_index === props.ticId);
+});
+
+const win = computed(() => !!subGridResult.value && subGridResult.value.winner_symbol !== 'D');
+const winner = computed(() => subGridResult.value?.winner_symbol || "");
 
 const isGridActive = computed(() => {
   if (isGameOver.value) return false;
-  // Box is active if:
-  // 1. It's not already won
-  // 2. AND (the global activeBox targets this specific grid OR any grid is allowed [activeBox === 9])
-  return !win.value && (activeBox.value === 9 || activeBox.value === props.ticId);
+  // Box is active if it's not already won and is the target box
+  return !subGridResult.value && (activeBox.value === 9 || activeBox.value === props.ticId);
 });
 
 const isDimmed = computed(() => {
-  // Dim the box if the game is still going, it's not won yet, but it's not the active box
-  return !isGameOver.value && !win.value && activeBox.value !== 9 && activeBox.value !== props.ticId;
+  return !isGameOver.value && !subGridResult.value && activeBox.value !== 9 && activeBox.value !== props.ticId;
 });
 
 function addturn(i: number) {
-  if (isGridActive.value) {
-    if (arr.value[i] !== "" || win.value) {
+  console.log("Attempting to add turn at index:", i);
+  if (isGridActive.value && isPlayerTurn.value) {
+    if (arr.value[i] !== "" || subGridResult.value) {
       return;
     }
-    arr.value[i] = currentUser.value;
-
-    const result = isWin(arr.value);
-    if (result) {
-      winner.value = result;
-      win.value = true;
-      
-      // Update global board status
-      addToMainBoard(props.ticId);
-      
-      // Determine next active box:
-      // If the clicked cell (i) points to a sub-grid that is already won globally, set activeBox to 9
-      if (isSubGridWon(i)) {
-        activeBox.value = 9;
-      } else {
-        activeBox.value = i;
-      }
-      
-      toggleUser();
-      return;
-    }
-
-    const draw = isDraw(arr.value);
-    if (draw) {
-      resetArr();
-      toggleUser();
-      activeBox.value = 9;
-      return;
-    }
-
-    // Normal move: toggle user and set next active box
-    toggleUser();
-    
-    if (isSubGridWon(i)) {
-      activeBox.value = 9;
-    } else {
-      activeBox.value = i;
-    }
+    // In multiplayer, we send the move to the server
+    sendMove(props.ticId, i);
   }
-}
-
-function resetArr() {
-  arr.value = Array(9).fill("");
 }
 </script>
 
@@ -87,14 +65,17 @@ function resetArr() {
       isGridActive 
         ? 'bg-white/10 border-2 border-accent-x scale-[1.03] z-10 shadow-[0_0_40px_rgba(0,242,255,0.2)]' 
         : 'bg-white/5 border border-white/10',
-      isDimmed ? 'opacity-30 grayscale-[0.7]' : 'opacity-100 grayscale-0',
+      isDimmed || (!isPlayerTurn && !isGameOver) ? 'opacity-30 grayscale-[0.7]' : 'opacity-100 grayscale-0',
       win ? 'border-transparent' : ''
     ]"
   >
     <div 
       v-for="(item, index) in arr" 
       :key="index" 
-      class="aspect-square bg-white/10 border border-white/5 rounded-lg flex items-center justify-center text-2xl font-extrabold cursor-pointer transition-all duration-200 select-none hover:bg-white/20 hover:border-white/20 md:text-lg"
+      class="aspect-square bg-white/10 border border-white/5 rounded-lg flex items-center justify-center text-2xl font-extrabold transition-all duration-200 select-none md:text-lg"
+      :class="[
+        item ? '' : (isGridActive && isPlayerTurn ? 'cursor-pointer hover:bg-white/20 hover:border-white/20' : 'cursor-not-allowed opacity-50')
+      ]"
       @click="addturn(index)"
     >
       <transition 
